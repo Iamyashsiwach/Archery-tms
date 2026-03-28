@@ -1,5 +1,5 @@
--- Run once in Supabase SQL Editor if you already applied the original schema.sql
--- (safe to re-run: uses IF NOT EXISTS)
+-- Run once in Supabase SQL Editor if you already applied an OLDER schema.sql
+-- (same as supabase/run_this_if_columns_missing.sql — safe to re-run)
 
 alter table tournaments
   add column if not exists judge_access_code text;

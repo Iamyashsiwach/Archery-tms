@@ -315,6 +315,10 @@ export function AdminDashboard() {
     );
   }
 
+  const columnMismatch =
+    dbError != null &&
+    (dbError.includes("column") || dbError.includes("schema cache"));
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -329,19 +333,35 @@ export function AdminDashboard() {
           className="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-primary"
           role="alert"
         >
-          <p className="font-heading font-semibold text-accent">Supabase tables missing</p>
-          <p className="mt-2 text-secondary">{dbError}</p>
-          <p className="mt-3 text-secondary">
-            Open the Supabase dashboard → <strong>SQL Editor</strong> → paste and run{" "}
-            <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-accent">
-              supabase/schema.sql
-            </code>{" "}
-            from this project, then run{" "}
-            <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono">
-              notify pgrst, &apos;reload schema&apos;;
-            </code>{" "}
-            if the API still errors. Reload this page after that.
+          <p className="font-heading font-semibold text-accent">
+            {columnMismatch
+              ? "Database is missing new columns"
+              : "Supabase tables missing"}
           </p>
+          <p className="mt-2 text-secondary">{dbError}</p>
+          {columnMismatch ? (
+            <p className="mt-3 text-secondary">
+              Your project was created before target / judge fields were added.
+              In Supabase → <strong>SQL Editor</strong>, paste and run{" "}
+              <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-accent">
+                supabase/run_this_if_columns_missing.sql
+              </code>
+              . It ends with{" "}
+              <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-xs">
+                notify pgrst, &apos;reload schema&apos;;
+              </code>
+              . Then hard-refresh this page. (Do <strong>not</strong> rely on
+              schema.sql alone—it does not alter existing tables.)
+            </p>
+          ) : (
+            <p className="mt-3 text-secondary">
+              In Supabase → <strong>SQL Editor</strong>, paste and run{" "}
+              <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-accent">
+                supabase/schema.sql
+              </code>
+              . Reload this page after that.
+            </p>
+          )}
         </div>
       )}
 

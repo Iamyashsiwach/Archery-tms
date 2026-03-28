@@ -1,5 +1,7 @@
--- 1) Supabase Dashboard → SQL Editor → New query → paste this file → Run.
--- 2) If tables already exist but the app still errors, run the NOTIFY line at the bottom again.
+-- 1) NEW project: SQL Editor → paste this file → Run.
+-- 2) EXISTING project (tables already created): do NOT re-run only this file for new
+--    columns — run supabase/run_this_if_columns_missing.sql instead, then reload Admin.
+-- 3) If the API still errors after DDL, run: notify pgrst, 'reload schema';
 -- 3) Dashboard → Database → Replication: enable Realtime for `scores` and `results`.
 -- 4) If API returns 401/permission errors, run supabase/policies.dev.sql (dev only).
 
