@@ -8,14 +8,23 @@ import type { Tournament } from "@/lib/types";
 export default function JudgePickPage() {
   const supabase = useSupabase();
   const [rows, setRows] = useState<Tournament[]>([]);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
+    setLoadErr(null);
     void supabase
       .from("tournaments")
       .select("*")
       .order("date", { ascending: false })
-      .then(({ data }) => setRows((data as Tournament[]) ?? []));
+      .then(({ data, error }) => {
+        if (error) {
+          setLoadErr(error.message);
+          setRows([]);
+          return;
+        }
+        setRows((data as Tournament[]) ?? []);
+      });
   }, [supabase]);
 
   if (!supabase) {
@@ -27,7 +36,12 @@ export default function JudgePickPage() {
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
       <h1 className="font-heading text-2xl font-bold text-primary">Judge</h1>
-      <p className="mt-2 text-secondary">Pick a tournament.</p>
+      <p className="mt-2 text-secondary">Pick a tournament. No admin PIN needed here.</p>
+      {loadErr && (
+        <p className="mt-4 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+          {loadErr}
+        </p>
+      )}
       <ul className="mt-6 flex flex-col gap-2">
         {rows.map((t) => (
           <li key={t.id}>

@@ -35,7 +35,7 @@ export function JudgeAccessLayout({
     }
     const { data, error } = await supabase
       .from("tournaments")
-      .select("judge_access_code")
+      .select("*")
       .eq("id", tournamentId)
       .maybeSingle();
 
@@ -45,7 +45,8 @@ export function JudgeAccessLayout({
       return;
     }
 
-    const code = (data?.judge_access_code as string | null | undefined)?.trim() ?? "";
+    const row = data as { judge_access_code?: string | null } | null;
+    const code = (row?.judge_access_code ?? "").trim();
     if (!code) {
       setOpen(true);
       setRequired(null);
