@@ -42,7 +42,8 @@ export async function isDivisionQualificationComplete(
   endCount: number,
   archers: Archer[]
 ): Promise<boolean> {
-  const grouped = groupArchersByDivision(archers);
+  const active = archers.filter((a) => !a.deleted_at);
+  const grouped = groupArchersByDivision(active);
   const list = grouped[division] ?? [];
   if (list.length === 0) return false;
 
@@ -104,12 +105,13 @@ export async function maybeGenerateBracketForDivision(
   endCount: number,
   allArchers: Archer[]
 ): Promise<void> {
+  const active = allArchers.filter((a) => !a.deleted_at);
   const complete = await isDivisionQualificationComplete(
     supabase,
     tournamentId,
     division,
     endCount,
-    allArchers
+    active
   );
   if (!complete) return;
 
@@ -121,12 +123,13 @@ export async function maybeGenerateBracketForDivision(
 
   if ((existing ?? 0) > 0) return;
 
-  await assignSeedsFromQualification(supabase, tournamentId, division, allArchers);
+  await assignSeedsFromQualification(supabase, tournamentId, division, active);
 
   const { data: freshArchers } = await supabase
     .from("archers")
     .select("*")
-    .eq("tournament_id", tournamentId);
+    .eq("tournament_id", tournamentId)
+    .is("deleted_at", null);
   const withSeeds = (freshArchers ?? []) as Archer[];
   const groupedFresh = groupArchersByDivision(withSeeds);
   const divArchers = groupedFresh[division] ?? [];

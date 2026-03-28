@@ -7,8 +7,9 @@ export default function HomePage() {
         Archery Tournament Management
       </h1>
       <p className="mt-4 text-secondary">
-        Judges register archers and enter scores. Rankings, brackets, and
-        displays update automatically.
+        Coaches register their archers (private links from admin). Judges score
+        qualification and matches; everyone sees live rankings, brackets, and
+        field target boards.
       </p>
       <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
         <Link

@@ -7,6 +7,8 @@ export type TournamentStatus =
 
 export type EventType = "WA18" | "WA25" | "WA720" | "NFAA_FIELD" | "CUSTOM";
 
+export type TermsLocale = "IND" | "US" | "BOTH";
+
 export type AgeCategory = "U18" | "U21" | "SENIOR" | "MASTER" | "VETERAN";
 export type Gender = "M" | "F" | "X";
 export type BowType = "RECURVE" | "COMPOUND" | "BAREBOW" | "LONGBOW";
@@ -30,6 +32,17 @@ export interface Tournament {
   judge_access_code?: string | null;
   archers_per_bale?: number | null;
   bale_count?: number | null;
+  terms_locale?: TermsLocale | null;
+  created_at: string;
+}
+
+export interface Coach {
+  id: string;
+  tournament_id: string;
+  display_name: string;
+  club: string | null;
+  invite_token: string;
+  locked_at: string | null;
   created_at: string;
 }
 
@@ -45,6 +58,9 @@ export interface Archer {
   seed_rank: number | null;
   bale_number?: number | null;
   slot_index?: number | null;
+  coach_id?: string | null;
+  registration_locked?: boolean | null;
+  deleted_at?: string | null;
   status: string;
   created_at: string;
 }

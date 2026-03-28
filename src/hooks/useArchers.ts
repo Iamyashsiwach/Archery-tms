@@ -5,10 +5,21 @@ import { useCallback, useEffect, useState } from "react";
 import type { Archer } from "@/lib/types";
 import { getDivision } from "@/lib/categoryGrouper";
 
+export type UseArchersOptions = {
+  /** Include soft-deleted archers (admin/judge trash). Default false. */
+  includeDeleted?: boolean;
+  /** Only archers belonging to this coach (coach portal). */
+  coachId?: string | null;
+};
+
 export function useArchers(
   supabase: SupabaseClient | null,
-  tournamentId: string | undefined
+  tournamentId: string | undefined,
+  opts?: UseArchersOptions
 ) {
+  const includeDeleted = opts?.includeDeleted ?? false;
+  const coachId = opts?.coachId;
+
   const [archers, setArchers] = useState<Archer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,16 +31,22 @@ export function useArchers(
       return;
     }
     setLoading(true);
-    const { data, error: e } = await supabase
+    let q = supabase
       .from("archers")
       .select("*")
-      .eq("tournament_id", tournamentId)
-      .order("name");
+      .eq("tournament_id", tournamentId);
+    if (!includeDeleted) {
+      q = q.is("deleted_at", null);
+    }
+    if (coachId) {
+      q = q.eq("coach_id", coachId);
+    }
+    const { data, error: e } = await q.order("name");
     if (e) setError(e.message);
     else setError(null);
     setArchers((data as Archer[]) ?? []);
     setLoading(false);
-  }, [supabase, tournamentId]);
+  }, [supabase, tournamentId, includeDeleted, coachId]);
 
   useEffect(() => {
     void fetchArchers();
@@ -43,6 +60,7 @@ export function useArchers(
     gender: Archer["gender"];
     bow_type: Archer["bow_type"];
     status?: string;
+    coach_id?: string | null;
   }) {
     if (!supabase) throw new Error("No supabase");
     const division = getDivision(
@@ -61,6 +79,8 @@ export function useArchers(
         bow_type: payload.bow_type,
         division,
         status: payload.status ?? "ACTIVE",
+        coach_id: payload.coach_id ?? null,
+        registration_locked: false,
       })
       .select()
       .single();

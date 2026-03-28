@@ -7,7 +7,14 @@ import { adminForceBracketGeneration } from "@/lib/adminBracket";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import { getEventConfig } from "@/lib/rulesEngine";
 import { assignArchersToBales, slotLetter } from "@/lib/targetAllotment";
-import type { Archer, EventType, ScoreRow, Tournament } from "@/lib/types";
+import type {
+  Archer,
+  Coach,
+  EventType,
+  ScoreRow,
+  TermsLocale,
+  Tournament,
+} from "@/lib/types";
 
 const ADMIN_KEY = "archery_admin_ok";
 
@@ -42,6 +49,11 @@ export function AdminDashboard() {
   const [judgeCode, setJudgeCode] = useState("");
   const [perBale, setPerBale] = useState(4);
   const [balesInput, setBalesInput] = useState(4);
+  const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [newCoachName, setNewCoachName] = useState("");
+  const [newCoachClub, setNewCoachClub] = useState("");
+  const [termsLocale, setTermsLocale] = useState<TermsLocale>("BOTH");
+  const [origin, setOrigin] = useState("");
 
   const tDetail = useMemo((): Tournament | null => {
     if (selected == null) return null;
@@ -53,6 +65,7 @@ export function AdminDashboard() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     setUnlocked(localStorage.getItem(ADMIN_KEY) === "1");
+    setOrigin(window.location.origin);
   }, []);
 
   useEffect(() => {
@@ -75,12 +88,30 @@ export function AdminDashboard() {
   const loadTournamentDetail = useCallback(async () => {
     if (!supabase || !selected) return;
     const [{ data: a }, { data: s }] = await Promise.all([
-      supabase.from("archers").select("*").eq("tournament_id", selected),
+      supabase
+        .from("archers")
+        .select("*")
+        .eq("tournament_id", selected)
+        .is("deleted_at", null),
       supabase.from("scores").select("*").eq("tournament_id", selected),
     ]);
     setArchers((a as Archer[]) ?? []);
     setScores((s as ScoreRow[]) ?? []);
   }, [supabase, selected]);
+
+  const loadCoaches = useCallback(async () => {
+    if (!supabase || !selected) return;
+    const { data } = await supabase
+      .from("coaches")
+      .select("*")
+      .eq("tournament_id", selected)
+      .order("created_at", { ascending: true });
+    setCoaches((data as Coach[]) ?? []);
+  }, [supabase, selected]);
+
+  useEffect(() => {
+    void loadCoaches();
+  }, [loadCoaches]);
 
   useEffect(() => {
     void loadTournamentDetail();
@@ -96,6 +127,7 @@ export function AdminDashboard() {
       Math.ceil(archers.length / Math.max(1, per)) || 1
     );
     setBalesInput(tDetail.bale_count ?? inferred);
+    setTermsLocale((tDetail.terms_locale as TermsLocale) ?? "BOTH");
   }, [tDetail, archers.length]);
 
   const unlock = (e: React.FormEvent) => {
@@ -136,6 +168,7 @@ export function AdminDashboard() {
       max_arrow_score: cfg.maxArrowScore,
       archers_per_bale: 4,
       judge_access_code: null,
+      terms_locale: "BOTH",
     });
     if (error) {
       setMsg(error.message);
@@ -159,8 +192,63 @@ export function AdminDashboard() {
 
   const deleteArcher = async (id: string) => {
     if (!supabase) return;
-    await supabase.from("archers").delete().eq("id", id);
+    await supabase
+      .from("archers")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
     await loadTournamentDetail();
+  };
+
+  const deleteTournament = async () => {
+    if (!supabase || !selected) return;
+    if (
+      !confirm(
+        "Delete this tournament and ALL related data (archers, scores, coaches)? This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    const { error } = await supabase.from("tournaments").delete().eq("id", selected);
+    if (error) {
+      setMsg(error.message);
+      return;
+    }
+    setSelected(null);
+    setMsg("Tournament deleted.");
+    const { data } = await supabase
+      .from("tournaments")
+      .select("*")
+      .order("date", { ascending: false });
+    setTournaments((data as Tournament[]) ?? []);
+  };
+
+  const createCoachInvite = async () => {
+    if (!supabase || !selected || !newCoachName.trim()) {
+      setMsg("Coach name required.");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("coaches")
+      .insert({
+        tournament_id: selected,
+        display_name: newCoachName.trim(),
+        club: newCoachClub.trim() || null,
+      })
+      .select()
+      .single();
+    if (error) {
+      setMsg(error.message);
+      return;
+    }
+    setNewCoachName("");
+    setNewCoachClub("");
+    setMsg("Coach invite created. Copy the link below.");
+    await loadCoaches();
+    const c = data as Coach;
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    void navigator.clipboard?.writeText(
+      `${base}/coach/${selected}/${c.invite_token}`
+    );
   };
 
   const downloadResultsCsv = () => {
@@ -222,6 +310,7 @@ export function AdminDashboard() {
         judge_access_code:
           judgeCode.trim() === "" ? null : judgeCode.trim(),
         archers_per_bale: Math.max(1, Math.floor(perBale)),
+        terms_locale: termsLocale,
       })
       .eq("id", selected);
     if (error) {
@@ -483,6 +572,12 @@ export function AdminDashboard() {
               Judge
             </Link>
             <Link
+              className="rounded-lg border border-accent/40 px-4 py-2 text-sm text-accent hover:border-accent"
+              href={`/judge/${selected}/roster`}
+            >
+              Judge roster
+            </Link>
+            <Link
               className="rounded-lg border border-border px-4 py-2 text-sm hover:border-accent"
               href={`/display/${selected}`}
             >
@@ -515,6 +610,13 @@ export function AdminDashboard() {
             >
               Mark complete
             </button>
+            <button
+              type="button"
+              className="rounded-lg border border-danger px-4 py-2 text-sm font-semibold text-danger"
+              onClick={() => void deleteTournament()}
+            >
+              Delete tournament
+            </button>
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-6">
@@ -522,9 +624,10 @@ export function AdminDashboard() {
               Judge link & targets
             </h3>
             <p className="mt-2 text-xs text-secondary">
-              Leave <strong>Judge code</strong> empty so anyone with the judge URL
-              can register and score (typical for club days). Set a code if you want
-              a simple shared gate for that event only.
+              Leave <strong>Judge code</strong> empty for open judge tools (scoring,
+              targets, roster). Athletes are added by <strong>coaches</strong> via
+              coach invites below — not from the judge register screen. Set a code
+              if you want a simple shared gate for judge URLs.
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1">
@@ -552,13 +655,27 @@ export function AdminDashboard() {
                   onChange={(e) => setPerBale(+e.target.value || 1)}
                 />
               </label>
+              <label className="flex flex-col gap-1 sm:col-span-2">
+                <span className="text-xs text-secondary">
+                  Field terminology (India / US screens)
+                </span>
+                <select
+                  className="rounded border border-border bg-background px-3 py-2"
+                  value={termsLocale}
+                  onChange={(e) => setTermsLocale(e.target.value as TermsLocale)}
+                >
+                  <option value="BOTH">Both (India + US labels)</option>
+                  <option value="IND">India-style terms</option>
+                  <option value="US">US-style terms</option>
+                </select>
+              </label>
             </div>
             <button
               type="button"
               className="mt-4 rounded-lg border border-border px-4 py-2 text-sm"
               onClick={() => void saveAccessAndBaleSettings()}
             >
-              Save access / bale size
+              Save access / bale / terms
             </button>
 
             <div className="mt-8 border-t border-border pt-6">
@@ -591,6 +708,76 @@ export function AdminDashboard() {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-6">
+            <h3 className="font-heading text-md font-semibold text-accent">
+              Coach invites (student registration)
+            </h3>
+            <p className="mt-2 text-xs text-secondary">
+              Coaches use a private link — they only see their own athletes. Judges
+              and Admin see everyone in Roster. After coaches lock, only judges can
+              edit from the Judge → Roster screen.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <input
+                className="min-w-[160px] flex-1 rounded border border-border bg-background px-3 py-2"
+                placeholder="Coach name"
+                value={newCoachName}
+                onChange={(e) => setNewCoachName(e.target.value)}
+              />
+              <input
+                className="min-w-[140px] flex-1 rounded border border-border bg-background px-3 py-2"
+                placeholder="Club (optional)"
+                value={newCoachClub}
+                onChange={(e) => setNewCoachClub(e.target.value)}
+              />
+              <button
+                type="button"
+                className="rounded-xl bg-accent px-4 py-2 font-heading text-sm font-bold text-black"
+                onClick={() => void createCoachInvite()}
+              >
+                Create invite
+              </button>
+            </div>
+            <ul className="mt-4 space-y-3">
+              {coaches.map((c) => {
+                const link = origin
+                  ? `${origin}/coach/${selected}/${c.invite_token}`
+                  : `/coach/${selected}/${c.invite_token}`;
+                return (
+                  <li
+                    key={c.id}
+                    className="rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm"
+                  >
+                    <span className="font-heading text-primary">
+                      {c.display_name}
+                    </span>
+                    {c.club && (
+                      <span className="text-secondary"> · {c.club}</span>
+                    )}
+                    {c.locked_at && (
+                      <span className="ml-2 text-xs text-accent">· locked</span>
+                    )}
+                    <div className="mt-1 break-all font-mono text-[10px] text-secondary">
+                      {link}
+                    </div>
+                    <button
+                      type="button"
+                      className="mt-1 text-xs text-accent hover:underline"
+                      onClick={() =>
+                        void navigator.clipboard.writeText(link)
+                      }
+                    >
+                      Copy link
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {coaches.length === 0 && (
+              <p className="mt-2 text-xs text-secondary">No coach invites yet.</p>
+            )}
           </div>
 
           <div>
@@ -627,7 +814,7 @@ export function AdminDashboard() {
                           className="text-danger text-xs"
                           onClick={() => void deleteArcher(a.id)}
                         >
-                          Delete
+                          Trash
                         </button>
                       </td>
                     </tr>

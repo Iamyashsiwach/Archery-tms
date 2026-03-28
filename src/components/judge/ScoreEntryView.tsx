@@ -12,7 +12,9 @@ import {
   maybeGenerateBracketForDivision,
   recalculateArcherResult,
 } from "@/lib/resultsSync";
+import { baleLabel, slotLabel } from "@/lib/archeryTerms";
 import { calculateTotal, getEventConfig, validateEnd } from "@/lib/rulesEngine";
+import { slotLetter } from "@/lib/targetAllotment";
 import { useSupabase } from "@/components/SupabaseProvider";
 import type { Archer, ArrowValue } from "@/lib/types";
 
@@ -238,6 +240,20 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
           >
             Printable scoresheet
           </Link>
+          {selectedArcher &&
+            selectedArcher.bale_number != null &&
+            selectedArcher.slot_index != null && (
+              <div className="rounded-xl border-2 border-accent/40 bg-[#141414] p-4">
+                <p className="font-heading text-xs uppercase tracking-wide text-accent">
+                  Field assignment
+                </p>
+                <p className="mt-1 font-mono text-xl text-primary sm:text-2xl">
+                  {baleLabel(tournament.terms_locale)} {selectedArcher.bale_number}{" "}
+                  · {slotLabel(tournament.terms_locale)}{" "}
+                  {slotLetter(selectedArcher.slot_index)}
+                </p>
+              </div>
+            )}
           <div className="rounded-xl border border-border bg-surface p-4">
             <p className="font-heading text-lg text-primary">
               End {Math.min(nextEnd, config.endCount)} of {config.endCount}

@@ -11,7 +11,8 @@ export async function adminForceBracketGeneration(
   tournamentId: string,
   allArchers: Archer[]
 ): Promise<void> {
-  const grouped = groupArchersByDivision(allArchers);
+  const active = allArchers.filter((a) => !a.deleted_at);
+  const grouped = groupArchersByDivision(active);
   for (const division of Object.keys(grouped)) {
     await supabase
       .from("matches")
@@ -23,13 +24,14 @@ export async function adminForceBracketGeneration(
       supabase,
       tournamentId,
       division,
-      allArchers
+      active
     );
 
     const { data: fresh } = await supabase
       .from("archers")
       .select("*")
-      .eq("tournament_id", tournamentId);
+      .eq("tournament_id", tournamentId)
+      .is("deleted_at", null);
     const groupedFresh = groupArchersByDivision((fresh as Archer[]) ?? []);
     const divArchers = groupedFresh[division] ?? [];
     const rows = generateBracket(divArchers, tournamentId, division);

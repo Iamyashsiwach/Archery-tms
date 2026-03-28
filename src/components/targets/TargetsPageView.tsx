@@ -49,6 +49,7 @@ export function TargetsPageView({
             archersPerBale={per}
             totalBales={totalBales}
             emphasize={emphasize}
+            termsLocale={tournament?.terms_locale}
           />
         </div>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
-import type { Archer } from "@/lib/types";
+import { baleLabel, formatTermsLocale, slotLabel } from "@/lib/archeryTerms";
+import type { Archer, TermsLocale } from "@/lib/types";
 import { groupAssignmentsByBale, slotLetter } from "@/lib/targetAllotment";
 
 function TargetFace({ baleNumber }: { baleNumber: number }) {
@@ -29,6 +30,8 @@ type Props = {
   title?: string;
   /** Larger type for field / TV */
   emphasize?: boolean;
+  /** IND / US / BOTH wording for headings */
+  termsLocale?: TermsLocale | null;
 };
 
 export function TargetBaleBoard({
@@ -37,7 +40,11 @@ export function TargetBaleBoard({
   totalBales,
   title = "Target allotment",
   emphasize = false,
+  termsLocale,
 }: Props) {
+  const loc = formatTermsLocale(termsLocale);
+  const baleHeading =
+    loc === "US" ? "Bale" : loc === "IND" ? "Target" : "Bale / target";
   const grouped = groupAssignmentsByBale(archers);
   const assignedMax =
     grouped.size > 0 ? Math.max(...grouped.keys()) : 0;
@@ -56,10 +63,11 @@ export function TargetBaleBoard({
         >
           {title}
         </h2>
-        <p className="mt-2 font-mono text-sm text-secondary">
-          Find your <span className="text-accent">bale number</span> and{" "}
-          <span className="text-accent">position (A–D)</span>. Shoot only on
-          your assigned target.
+        <p className="mt-2 text-sm text-secondary">
+          <span className="font-mono text-accent">{baleLabel(termsLocale)}</span>
+          {" · "}
+          <span className="font-mono text-accent">{slotLabel(termsLocale)}</span>
+          . Shoot only on your assigned target face.
         </p>
       </div>
 
@@ -78,7 +86,7 @@ export function TargetBaleBoard({
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div>
                   <p className="font-heading text-xs uppercase tracking-widest text-accent">
-                    Bale
+                    {baleHeading}
                   </p>
                   <p
                     className={`font-mono font-bold text-primary ${emphasize ? "text-4xl" : "text-3xl"}`}

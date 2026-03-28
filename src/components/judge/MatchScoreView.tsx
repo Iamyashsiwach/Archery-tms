@@ -6,6 +6,11 @@ import { useArchers } from "@/hooks/useArchers";
 import { useBracket } from "@/hooks/useBracket";
 import { useTournament } from "@/hooks/useTournament";
 import { useSupabase } from "@/components/SupabaseProvider";
+import {
+  bracketRoundLabel,
+  formatTermsLocale,
+  matchLegendLines,
+} from "@/lib/archeryTerms";
 import type { MatchRow } from "@/lib/types";
 
 export function MatchScoreView({ tournamentId }: { tournamentId: string }) {
@@ -47,18 +52,33 @@ export function MatchScoreView({ tournamentId }: { tournamentId: string }) {
       {tournament && (
         <p className="text-sm text-secondary">{tournament.name}</p>
       )}
+      <div className="mt-4 rounded-lg border border-border/80 bg-surface px-3 py-3 text-xs text-secondary">
+        {matchLegendLines(tournament?.terms_locale).map((line) => (
+          <p key={line} className="leading-relaxed">
+            {line}
+          </p>
+        ))}
+      </div>
       <ul className="mt-6 flex flex-col gap-4">
         {pending.map((m) => {
           const a1 = m.archer1_id ? archersById.get(m.archer1_id)?.name : "TBD";
           const a2 = m.archer2_id ? archersById.get(m.archer2_id)?.name : "TBD";
           const open = pick === m.id;
+          const loc = formatTermsLocale(tournament?.terms_locale);
+          const lbl = bracketRoundLabel(m.round, tournament?.terms_locale);
+          const roundTitle =
+            loc === "US"
+              ? lbl.us
+              : loc === "IND"
+                ? lbl.ind
+                : `${lbl.us} (${lbl.ind})`;
           return (
             <li
               key={m.id}
               className="rounded-xl border border-border bg-surface p-4"
             >
               <p className="font-mono text-xs text-secondary">
-                {m.division} · {m.round} #{m.match_number}
+                {m.division} · {roundTitle} · #{m.match_number}
               </p>
               <p className="mt-2 font-heading">{a1}</p>
               <p className="font-heading text-secondary">vs</p>

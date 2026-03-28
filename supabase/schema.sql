@@ -20,8 +20,21 @@ create table if not exists tournaments (
   judge_access_code text,
   archers_per_bale int default 4,
   bale_count int,
+  terms_locale text default 'BOTH',
   created_at timestamptz default now()
 );
+
+create table if not exists coaches (
+  id uuid primary key default gen_random_uuid(),
+  tournament_id uuid not null references tournaments(id) on delete cascade,
+  display_name text not null,
+  club text,
+  invite_token uuid not null default gen_random_uuid() unique,
+  locked_at timestamptz,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_coaches_tournament on coaches(tournament_id);
 
 create table if not exists archers (
   id uuid primary key default gen_random_uuid(),
@@ -35,6 +48,9 @@ create table if not exists archers (
   seed_rank int,
   bale_number int,
   slot_index int,
+  coach_id uuid references coaches(id) on delete set null,
+  registration_locked boolean default false,
+  deleted_at timestamptz,
   status text default 'ACTIVE',
   created_at timestamptz default now()
 );
