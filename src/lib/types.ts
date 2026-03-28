@@ -11,7 +11,9 @@ export type EventType =
   | "WA720"
   | "R360"
   | "NFAA_FIELD"
-  | "CUSTOM";
+  | "CUSTOM"
+  /** Team qualification: one score entry per team per end (e.g. 6 arrows / end, WA rings). */
+  | "WA_TEAM";
 
 export type AgeCategory = "U18" | "U21" | "SENIOR" | "MASTER" | "VETERAN";
 export type Gender = "M" | "F" | "X";
@@ -122,4 +124,45 @@ export interface LeaderboardEntry {
   ends_required: number;
   bale_number?: number | null;
   slot_index?: number | null;
+}
+
+export interface Team {
+  id: string;
+  tournament_id: string;
+  name: string;
+  division: string | null;
+  created_at: string;
+}
+
+export interface TeamScoreRow {
+  id: string;
+  team_id: string;
+  tournament_id: string;
+  round: ScoreRound;
+  end_number: number;
+  arrows: ArrowValue[];
+  end_total: number;
+  x_count: number;
+  created_at: string;
+}
+
+export interface TeamResultRow {
+  id: string;
+  team_id: string;
+  tournament_id: string;
+  division: string | null;
+  final_rank: number | null;
+  total_score: number;
+  total_x_count: number;
+  created_at?: string;
+}
+
+export interface TeamLeaderboardEntry {
+  team_id: string;
+  name: string;
+  division: string | null;
+  total_score: number;
+  total_x_count: number;
+  ends_complete: number;
+  ends_required: number;
 }

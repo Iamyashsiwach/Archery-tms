@@ -2,7 +2,8 @@
 -- 2) EXISTING project (tables already created): do NOT re-run only this file for new
 --    columns — run supabase/run_this_if_columns_missing.sql instead, then reload Admin.
 -- 3) If the API still errors after DDL, run: notify pgrst, 'reload schema';
--- 3) Dashboard → Database → Replication: enable Realtime for `scores` and `results`.
+-- 3) Dashboard → Database → Replication: enable Realtime for `scores`, `results`,
+--    `team_scores`, and `team_results` (for WA team events).
 -- 4) If API returns 401/permission errors, run supabase/policies.dev.sql (dev only).
 
 create table if not exists tournaments (
@@ -12,7 +13,7 @@ create table if not exists tournaments (
   status text default 'REGISTRATION'
     check (status in ('REGISTRATION','QUALIFICATION','ELIMINATION','FINALS','COMPLETE')),
   event_type text not null
-    check (event_type in ('WA18','WA25','WA720','R360','NFAA_FIELD','CUSTOM')),
+    check (event_type in ('WA18','WA25','WA720','R360','NFAA_FIELD','CUSTOM','WA_TEAM')),
   arrows_per_end int not null,
   end_count int not null,
   max_arrow_score int not null,
@@ -101,6 +102,45 @@ create index if not exists idx_scores_tournament on scores(tournament_id);
 create index if not exists idx_scores_archer on scores(archer_id);
 create index if not exists idx_matches_tournament on matches(tournament_id);
 create index if not exists idx_results_tournament on results(tournament_id);
+
+create table if not exists teams (
+  id uuid primary key default gen_random_uuid(),
+  tournament_id uuid not null references tournaments(id) on delete cascade,
+  name text not null,
+  division text,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_teams_tournament on teams(tournament_id);
+
+create table if not exists team_scores (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references teams(id) on delete cascade,
+  tournament_id uuid not null references tournaments(id) on delete cascade,
+  round text not null check (round in ('QUALIFICATION','ELIMINATION','FINAL')),
+  end_number int not null,
+  arrows jsonb not null,
+  end_total int not null,
+  x_count int default 0,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_team_scores_tournament on team_scores(tournament_id);
+create index if not exists idx_team_scores_team on team_scores(team_id);
+
+create table if not exists team_results (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references teams(id) on delete cascade,
+  tournament_id uuid not null references tournaments(id) on delete cascade,
+  division text,
+  final_rank int,
+  total_score int default 0,
+  total_x_count int default 0,
+  created_at timestamptz default now(),
+  unique (team_id, tournament_id)
+);
+
+create index if not exists idx_team_results_tournament on team_results(tournament_id);
 
 -- Tell PostgREST to reload the schema cache (fixes "Could not find the table ... in the schema cache")
 notify pgrst, 'reload schema';

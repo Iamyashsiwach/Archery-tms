@@ -3,21 +3,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowScoreButton } from "@/components/ArrowScoreButton";
-import { useArchers } from "@/hooks/useArchers";
-import { useScores } from "@/hooks/useScores";
+import { useTeamScores } from "@/hooks/useTeamScores";
+import { useTeams } from "@/hooks/useTeams";
 import { useTournament } from "@/hooks/useTournament";
-import { getDivision } from "@/lib/categoryGrouper";
 import {
   bumpRegistrationToQualificationIfNeeded,
-  maybeGenerateBracketForDivision,
-  recalculateArcherResult,
+  recalculateTeamResult,
 } from "@/lib/resultsSync";
-import { baleLabel, slotLabel } from "@/lib/archeryTerms";
 import { calculateTotal, getEventConfig, validateEnd } from "@/lib/rulesEngine";
-import { slotLetter } from "@/lib/targetAllotment";
-import { TeamScoreEntryView } from "@/components/judge/TeamScoreEntryView";
 import { useSupabase } from "@/components/SupabaseProvider";
-import type { Archer, ArrowValue } from "@/lib/types";
+import type { ArrowValue, Team } from "@/lib/types";
 
 function labelFor(v: ArrowValue): string {
   if (v === "M") return "M";
@@ -25,18 +20,15 @@ function labelFor(v: ArrowValue): string {
   return String(v);
 }
 
-export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
+export function TeamScoreEntryView({ tournamentId }: { tournamentId: string }) {
   const supabase = useSupabase();
   const { tournament, refetch: refetchT } = useTournament(supabase, tournamentId);
-  const { archers, refetch: refetchArchers } = useArchers(
-    supabase,
-    tournamentId
-  );
-  const [archerId, setArcherId] = useState<string>("");
-  const { scores, refetch: refetchScores } = useScores(
+  const { teams, refetch: refetchTeams } = useTeams(supabase, tournamentId);
+  const [teamId, setTeamId] = useState<string>("");
+  const { scores, refetch: refetchScores } = useTeamScores(
     supabase,
     tournamentId,
-    archerId || undefined
+    teamId || undefined
   );
 
   const qualScores = useMemo(
@@ -46,9 +38,7 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
 
   const config = useMemo(() => {
     if (!tournament) return null;
-    return tournament.event_type === "CUSTOM"
-      ? getEventConfig("CUSTOM", tournament)
-      : getEventConfig(tournament.event_type);
+    return getEventConfig(tournament.event_type, tournament);
   }, [tournament]);
 
   const nextEnd = qualScores.length + 1;
@@ -64,7 +54,7 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
       return;
     }
     setSlots(Array.from({ length: config.arrowsPerEnd }, () => null));
-  }, [config, archerId]);
+  }, [config, teamId]);
 
   const activeIndex = slots.findIndex((s) => s === null);
   const preview = useMemo(() => {
@@ -77,18 +67,15 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
     return { total: v.total, xCount: v.xCount, valid: v.valid };
   }, [slots, config]);
 
-  const pick = useCallback(
-    (v: ArrowValue) => {
-      setSlots((prev) => {
-        const i = prev.findIndex((s) => s === null);
-        if (i === -1) return prev;
-        const next = [...prev];
-        next[i] = v;
-        return next;
-      });
-    },
-    [setSlots]
-  );
+  const pick = useCallback((v: ArrowValue) => {
+    setSlots((prev) => {
+      const i = prev.findIndex((s) => s === null);
+      if (i === -1) return prev;
+      const next = [...prev];
+      next[i] = v;
+      return next;
+    });
+  }, []);
 
   const clearSlot = (idx: number) => {
     setSlots((prev) => {
@@ -98,10 +85,10 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
     });
   };
 
-  const selectedArcher = archers.find((a) => a.id === archerId) ?? null;
+  const selectedTeam = teams.find((t) => t.id === teamId) ?? null;
 
   const submit = async () => {
-    if (!supabase || !tournament || !config || !selectedArcher) return;
+    if (!supabase || !tournament || !config || !selectedTeam) return;
     const filled = slots.filter((s): s is ArrowValue => s !== null);
     const v = validateEnd(filled, config);
     if (!v.valid || filled.length !== config.arrowsPerEnd) {
@@ -109,15 +96,15 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
       return;
     }
     if (nextEnd > config.endCount) {
-      setMsg("All qualification ends recorded for this archer.");
+      setMsg("All qualification ends recorded for this team.");
       return;
     }
     setBusy(true);
     setMsg(null);
     try {
       await bumpRegistrationToQualificationIfNeeded(supabase, tournament.id);
-      const { error: insErr } = await supabase.from("scores").insert({
-        archer_id: selectedArcher.id,
+      const { error: insErr } = await supabase.from("team_scores").insert({
+        team_id: selectedTeam.id,
         tournament_id: tournament.id,
         round: "QUALIFICATION",
         end_number: nextEnd,
@@ -127,36 +114,17 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
       });
       if (insErr) throw insErr;
 
-      await recalculateArcherResult(
+      await recalculateTeamResult(
         supabase,
-        selectedArcher.id,
+        selectedTeam.id,
         tournament.id,
-        selectedArcher.division
+        selectedTeam.division
       );
 
-      const divName =
-        selectedArcher.division ??
-        getDivision(
-          selectedArcher.bow_type,
-          selectedArcher.gender,
-          selectedArcher.age_category
-        );
-
-      await refetchArchers();
-      const fresh = await fetchArchersRaw(supabase, tournament.id);
-      await maybeGenerateBracketForDivision(
-        supabase,
-        tournament.id,
-        divName,
-        config.endCount,
-        fresh
-      );
-
-      setSlots(
-        Array.from({ length: config.arrowsPerEnd }, () => null)
-      );
+      setSlots(Array.from({ length: config.arrowsPerEnd }, () => null));
       await refetchScores();
       await refetchT();
+      await refetchTeams();
       setMsg("End saved.");
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : "Save failed");
@@ -164,17 +132,6 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
       setBusy(false);
     }
   };
-
-  async function fetchArchersRaw(
-    client: NonNullable<typeof supabase>,
-    tid: string
-  ) {
-    const { data } = await client
-      .from("archers")
-      .select("*")
-      .eq("tournament_id", tid);
-    return (data as Archer[]) ?? [];
-  }
 
   if (!supabase) {
     return (
@@ -188,15 +145,8 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
     return <p className="text-secondary">Loading tournament…</p>;
   }
 
-  if (tournament.event_type === "WA_TEAM") {
-    return <TeamScoreEntryView tournamentId={tournamentId} />;
-  }
-
   const canSubmit =
-    preview.valid &&
-    archerId &&
-    nextEnd <= config.endCount &&
-    !busy;
+    preview.valid && teamId && nextEnd <= config.endCount && !busy;
 
   const zones = config.scoringZones;
 
@@ -214,51 +164,43 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
         </span>
       </div>
 
+      <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-secondary">
+        <strong className="text-primary">Team event:</strong> one end per team (all
+        archers on that bale). {config.arrowsPerEnd} arrows per end,{" "}
+        {config.endCount} ends — cumulative team total.
+      </p>
+
       <label className="flex flex-col gap-1">
         <span className="font-heading text-sm uppercase text-secondary">
-          Archer
+          Team
         </span>
         <select
           className="rounded-lg border border-border bg-surface px-3 py-3 font-heading text-primary"
-          value={archerId}
-          onChange={(e) => setArcherId(e.target.value)}
+          value={teamId}
+          onChange={(e) => setTeamId(e.target.value)}
         >
-          <option value="">Select archer…</option>
-          {archers.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
+          <option value="">Select team…</option>
+          {teams.map((t: Team) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
             </option>
           ))}
         </select>
-        {selectedArcher && (
+        {selectedTeam && (
           <span className="text-sm text-secondary">
-            {selectedArcher.division}
+            {selectedTeam.division ?? "No division"}
           </span>
         )}
       </label>
 
-      {archerId && (
+      {teams.length === 0 && (
+        <p className="text-sm text-secondary">
+          No teams in this tournament. Add teams in Admin first.
+        </p>
+      )}
+
+      {teamId && (
         <>
-          <Link
-            href={`/print/${tournamentId}/scoresheet/${archerId}`}
-            className="text-center text-sm text-accent hover:underline"
-          >
-            Printable scoresheet
-          </Link>
-          {selectedArcher &&
-            selectedArcher.bale_number != null &&
-            selectedArcher.slot_index != null && (
-              <div className="rounded-xl border-2 border-accent/40 bg-[#141414] p-4">
-                <p className="font-heading text-xs uppercase tracking-wide text-accent">
-                  Field assignment
-                </p>
-                <p className="mt-1 font-mono text-xl text-primary sm:text-2xl">
-                  {baleLabel()} {selectedArcher.bale_number}{" "}
-                  · {slotLabel()}{" "}
-                  {slotLetter(selectedArcher.slot_index)}
-                </p>
-              </div>
-            )}
           <div className="rounded-xl border border-border bg-surface p-4">
             <p className="font-heading text-lg text-primary">
               End {Math.min(nextEnd, config.endCount)} of {config.endCount}

@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateBracket } from "./bracketEngine";
 import { groupArchersByDivision } from "./categoryGrouper";
 import { calculateTotal } from "./rulesEngine";
-import type { Archer, ScoreRow } from "./types";
+import type { Archer, ScoreRow, TeamScoreRow } from "./types";
 
 export async function recalculateArcherResult(
   supabase: SupabaseClient,
@@ -32,6 +32,35 @@ export async function recalculateArcherResult(
       total_x_count: xCount,
     },
     { onConflict: "archer_id,tournament_id" }
+  );
+}
+
+export async function recalculateTeamResult(
+  supabase: SupabaseClient,
+  teamId: string,
+  tournamentId: string,
+  division: string | null
+): Promise<void> {
+  const { data: rows } = await supabase
+    .from("team_scores")
+    .select("*")
+    .eq("team_id", teamId)
+    .eq("tournament_id", tournamentId)
+    .eq("round", "QUALIFICATION")
+    .order("end_number", { ascending: true });
+
+  const scores = (rows ?? []) as TeamScoreRow[];
+  const { total, xCount } = calculateTotal(scores);
+
+  await supabase.from("team_results").upsert(
+    {
+      team_id: teamId,
+      tournament_id: tournamentId,
+      division: division ?? null,
+      total_score: total,
+      total_x_count: xCount,
+    },
+    { onConflict: "team_id,tournament_id" }
   );
 }
 
@@ -105,6 +134,13 @@ export async function maybeGenerateBracketForDivision(
   endCount: number,
   allArchers: Archer[]
 ): Promise<void> {
+  const { data: tmeta } = await supabase
+    .from("tournaments")
+    .select("event_type")
+    .eq("id", tournamentId)
+    .maybeSingle();
+  if (tmeta?.event_type === "WA_TEAM") return;
+
   const active = allArchers.filter((a) => !a.deleted_at);
   const complete = await isDivisionQualificationComplete(
     supabase,

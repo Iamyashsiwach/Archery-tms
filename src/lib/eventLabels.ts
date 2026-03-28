@@ -11,6 +11,8 @@ export const EVENT_FORMAT_LABELS: Record<EventType, string> = {
     "720 round — ranking (e.g. 70 m recurve / 50 m compound; national / WA circuit in India)",
   R360:
     "360 round — 12 ends × 3 arrows, cumulative total (max 360 on WA 10 ring). Use Custom if your association uses different ends.",
+  WA_TEAM:
+    "WA team qualification — 6 arrows per end, 24 ends (cumulative team total). Add teams in Admin; judges score by team, not by individual archer.",
   NFAA_FIELD: "Field / marked round — outdoor targets, non-720 format",
   CUSTOM: "Custom — you set arrows per end, ends, and max score",
 };

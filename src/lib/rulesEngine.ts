@@ -58,6 +58,15 @@ export function getEventConfig(
         scoringZones: waZones(10),
         useSetSystem: false,
       };
+    /** WA-style team qualification: 6 arrows per end (e.g. 3 archers × 2), cumulative. */
+    case "WA_TEAM":
+      return {
+        arrowsPerEnd: 6,
+        endCount: 24,
+        maxArrowScore: 10,
+        scoringZones: waZones(10),
+        useSetSystem: false,
+      };
     case "NFAA_FIELD":
       return {
         arrowsPerEnd: 4,
@@ -131,7 +140,9 @@ export function validateEnd(
   return { valid: errors.length === 0, total, xCount, errors };
 }
 
-export function calculateTotal(scores: ScoreRow[]): {
+export function calculateTotal(
+  scores: Pick<ScoreRow, "end_total" | "x_count">[]
+): {
   total: number;
   xCount: number;
   endBreakdown: number[];

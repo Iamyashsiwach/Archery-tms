@@ -25,7 +25,7 @@ alter table tournaments drop constraint if exists tournaments_event_type_check;
 alter table tournaments
   add constraint tournaments_event_type_check
   check (
-    event_type in ('WA18','WA25','WA720','R360','NFAA_FIELD','CUSTOM')
+    event_type in ('WA18','WA25','WA720','R360','NFAA_FIELD','CUSTOM','WA_TEAM')
   );
 
 notify pgrst, 'reload schema';

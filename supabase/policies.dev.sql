@@ -7,6 +7,9 @@ alter table scores enable row level security;
 alter table matches enable row level security;
 alter table results enable row level security;
 alter table coaches enable row level security;
+alter table teams enable row level security;
+alter table team_scores enable row level security;
+alter table team_results enable row level security;
 
 create policy "dev tournaments all" on tournaments for all using (true) with check (true);
 create policy "dev archers all" on archers for all using (true) with check (true);
@@ -14,3 +17,6 @@ create policy "dev scores all" on scores for all using (true) with check (true);
 create policy "dev matches all" on matches for all using (true) with check (true);
 create policy "dev results all" on results for all using (true) with check (true);
 create policy "dev coaches all" on coaches for all using (true) with check (true);
+create policy "dev teams all" on teams for all using (true) with check (true);
+create policy "dev team_scores all" on team_scores for all using (true) with check (true);
+create policy "dev team_results all" on team_results for all using (true) with check (true);

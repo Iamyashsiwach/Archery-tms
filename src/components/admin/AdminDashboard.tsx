@@ -13,6 +13,8 @@ import type {
   Coach,
   EventType,
   ScoreRow,
+  Team,
+  TeamResultRow,
   Tournament,
 } from "@/lib/types";
 
@@ -23,6 +25,7 @@ const EVENT_TYPES: EventType[] = [
   "WA25",
   "WA720",
   "R360",
+  "WA_TEAM",
   "NFAA_FIELD",
   "CUSTOM",
 ];
@@ -54,6 +57,10 @@ export function AdminDashboard() {
   const [newCoachName, setNewCoachName] = useState("");
   const [newCoachClub, setNewCoachClub] = useState("");
   const [origin, setOrigin] = useState("");
+  const [eventTeams, setEventTeams] = useState<Team[]>([]);
+  const [teamResults, setTeamResults] = useState<TeamResultRow[]>([]);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [newTeamDivision, setNewTeamDivision] = useState("");
 
   const tDetail = useMemo((): Tournament | null => {
     if (selected == null) return null;
@@ -87,16 +94,27 @@ export function AdminDashboard() {
 
   const loadTournamentDetail = useCallback(async () => {
     if (!supabase || !selected) return;
-    const [{ data: a }, { data: s }] = await Promise.all([
+    const [ar, sr, tmr, trr] = await Promise.all([
       supabase
         .from("archers")
         .select("*")
         .eq("tournament_id", selected)
         .is("deleted_at", null),
       supabase.from("scores").select("*").eq("tournament_id", selected),
+      supabase
+        .from("teams")
+        .select("*")
+        .eq("tournament_id", selected)
+        .order("name", { ascending: true }),
+      supabase
+        .from("team_results")
+        .select("*")
+        .eq("tournament_id", selected),
     ]);
-    setArchers((a as Archer[]) ?? []);
-    setScores((s as ScoreRow[]) ?? []);
+    setArchers((ar.data as Archer[]) ?? []);
+    setScores((sr.data as ScoreRow[]) ?? []);
+    setEventTeams(tmr.error ? [] : ((tmr.data as Team[]) ?? []));
+    setTeamResults(trr.error ? [] : ((trr.data as TeamResultRow[]) ?? []));
   }, [supabase, selected]);
 
   const loadCoaches = useCallback(async () => {
@@ -203,11 +221,42 @@ export function AdminDashboard() {
     await loadTournamentDetail();
   };
 
+  const createTeam = async () => {
+    if (!supabase || !selected || !newTeamName.trim()) {
+      setMsg("Team name required.");
+      return;
+    }
+    const { error } = await supabase.from("teams").insert({
+      tournament_id: selected,
+      name: newTeamName.trim(),
+      division: newTeamDivision.trim() || null,
+    });
+    if (error) {
+      setMsg(error.message);
+      return;
+    }
+    setNewTeamName("");
+    setNewTeamDivision("");
+    setMsg("Team added.");
+    await loadTournamentDetail();
+  };
+
+  const deleteTeam = async (id: string) => {
+    if (!supabase) return;
+    if (!confirm("Delete this team and its scores?")) return;
+    const { error } = await supabase.from("teams").delete().eq("id", id);
+    if (error) {
+      setMsg(error.message);
+      return;
+    }
+    await loadTournamentDetail();
+  };
+
   const deleteTournament = async () => {
     if (!supabase || !selected) return;
     if (
       !confirm(
-        "Delete this tournament and ALL related data (archers, scores, coaches)? This cannot be undone."
+        "Delete this tournament and ALL related data (archers, scores, coaches, teams)? This cannot be undone."
       )
     ) {
       return;
@@ -257,6 +306,27 @@ export function AdminDashboard() {
 
   const downloadResultsCsv = () => {
     if (!selected) return;
+    if (tDetail?.event_type === "WA_TEAM") {
+      const totals = new Map(
+        teamResults.map((r) => [r.team_id, r] as const)
+      );
+      const rows = eventTeams
+        .map((t) => {
+          const r = totals.get(t.id);
+          return [
+            t.name,
+            t.division ?? "",
+            r?.total_score ?? 0,
+            r?.total_x_count ?? 0,
+          ] as (string | number)[];
+        })
+        .sort(
+          (a, b) => Number(b[2]) - Number(a[2]) || Number(b[3]) - Number(a[3])
+        );
+      const csv = rowsToCsv(["Team", "Division", "Total", "X"], rows);
+      downloadCsv(`team-results-${selected}.csv`, csv);
+      return;
+    }
     const byArcher = new Map<string, { name: string; division: string | null; total: number; x: number }>();
     for (const a of archers) {
       byArcher.set(a.id, {
@@ -604,13 +674,15 @@ export function AdminDashboard() {
             >
               Download CSV
             </button>
-            <button
-              type="button"
-              className="rounded-lg border border-accent px-4 py-2 text-sm text-accent"
-              onClick={() => void forceBracket()}
-            >
-              Generate elimination matches
-            </button>
+            {tDetail.event_type !== "WA_TEAM" && (
+              <button
+                type="button"
+                className="rounded-lg border border-accent px-4 py-2 text-sm text-accent"
+                onClick={() => void forceBracket()}
+              >
+                Generate elimination matches
+              </button>
+            )}
             <button
               type="button"
               className="rounded-lg border border-danger/60 px-4 py-2 text-sm text-danger"
@@ -703,6 +775,66 @@ export function AdminDashboard() {
               </div>
             </div>
           </div>
+
+          {tDetail.event_type === "WA_TEAM" && (
+            <div className="rounded-xl border border-accent/40 bg-surface p-6">
+              <h3 className="font-heading text-md font-semibold text-accent">
+                Teams (WA team event)
+              </h3>
+              <p className="mt-2 text-xs text-secondary">
+                Add one row per squad. Judges enter scores in{" "}
+                <strong>Enter scores</strong> by team (6 arrows per end, 24 ends).
+                Display shows the team leaderboard — no individual elimination
+                bracket.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <input
+                  className="min-w-[160px] flex-1 rounded border border-border bg-background px-3 py-2"
+                  placeholder="Team name"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                />
+                <input
+                  className="min-w-[120px] flex-1 rounded border border-border bg-background px-3 py-2"
+                  placeholder="Division (optional)"
+                  value={newTeamDivision}
+                  onChange={(e) => setNewTeamDivision(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="rounded-xl bg-accent px-4 py-2 font-heading text-sm font-bold text-black"
+                  onClick={() => void createTeam()}
+                >
+                  Add team
+                </button>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {eventTeams.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm"
+                  >
+                    <span className="font-heading text-primary">
+                      {t.name}
+                      {t.division && (
+                        <span className="ml-2 text-secondary">· {t.division}</span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs text-danger hover:underline"
+                      onClick={() => void deleteTeam(t.id)}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {eventTeams.length === 0 && (
+                <p className="mt-2 text-xs text-secondary">No teams yet.</p>
+              )}
+            </div>
+          )}
 
           <div className="rounded-xl border border-border bg-surface p-6">
             <h3 className="font-heading text-md font-semibold text-accent">
