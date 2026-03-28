@@ -95,7 +95,7 @@ export function ResultsPrintView({
           <tr>
             <th className="border p-2 text-left">Rank</th>
             <th className="border p-2 text-left">Name</th>
-            <th className="border p-2 text-left">Club</th>
+            <th className="border p-2 text-left">School / region</th>
             <th className="border p-2 font-mono">Score</th>
             <th className="border p-2 font-mono">X</th>
           </tr>

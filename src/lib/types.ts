@@ -5,13 +5,18 @@ export type TournamentStatus =
   | "FINALS"
   | "COMPLETE";
 
-export type EventType = "WA18" | "WA25" | "WA720" | "NFAA_FIELD" | "CUSTOM";
-
-export type TermsLocale = "IND" | "US" | "BOTH";
+export type EventType =
+  | "WA18"
+  | "WA25"
+  | "WA720"
+  | "R360"
+  | "NFAA_FIELD"
+  | "CUSTOM";
 
 export type AgeCategory = "U18" | "U21" | "SENIOR" | "MASTER" | "VETERAN";
 export type Gender = "M" | "F" | "X";
-export type BowType = "RECURVE" | "COMPOUND" | "BAREBOW" | "LONGBOW";
+/** India-focused equipment classes: Olympic recurve, compound, and Indian bow. */
+export type BowType = "RECURVE" | "COMPOUND" | "INDIAN";
 
 export type ScoreRound = "QUALIFICATION" | "ELIMINATION" | "FINAL";
 
@@ -32,7 +37,6 @@ export interface Tournament {
   judge_access_code?: string | null;
   archers_per_bale?: number | null;
   bale_count?: number | null;
-  terms_locale?: TermsLocale | null;
   created_at: string;
 }
 
@@ -116,4 +120,6 @@ export interface LeaderboardEntry {
   status: string;
   ends_complete: number;
   ends_required: number;
+  bale_number?: number | null;
+  slot_index?: number | null;
 }

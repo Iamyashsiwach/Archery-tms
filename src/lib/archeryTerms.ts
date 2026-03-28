@@ -1,89 +1,63 @@
-/** Indian vs US English labels used on field displays. */
+/** Single set of field labels (no regional style switch). */
 
-export type TermsLocale = "IND" | "US" | "BOTH";
-
-export function formatTermsLocale(
-  locale: TermsLocale | null | undefined
-): TermsLocale {
-  return locale === "IND" || locale === "US" ? locale : "BOTH";
+export function baleLabel(): string {
+  return "Bale #";
 }
 
-export function baleLabel(locale: TermsLocale | null | undefined): string {
-  const l = formatTermsLocale(locale);
-  if (l === "US") return "Target bale #";
-  if (l === "IND") return "Target no.";
-  return "Bale / target # (US: bale · India: target)";
-}
-
-export function slotLabel(locale: TermsLocale | null | undefined): string {
-  const l = formatTermsLocale(locale);
-  if (l === "US") return "Shooting position (A–D)";
-  if (l === "IND") return "Position on line (A–D)";
+export function slotLabel(): string {
   return "Position (A–D)";
 }
 
-export function endLabel(locale: TermsLocale | null | undefined): string {
-  const l = formatTermsLocale(locale);
-  if (l === "US") return "End";
-  if (l === "IND") return "End / round";
-  return "End (WA: 3 arrows per end)";
+export function endLabel(): string {
+  return "End";
 }
 
-export function qualificationLabel(locale: TermsLocale | null | undefined): string {
-  const l = formatTermsLocale(locale);
-  if (l === "US") return "Qualification (ranking)";
-  if (l === "IND") return "Qualification round";
-  return "Qualification (ranking round)";
+export function qualificationLabel(): string {
+  return "Qualification";
 }
 
-export function bracketRoundLabel(
-  round: string | null | undefined,
-  locale: TermsLocale | null | undefined
-): { short: string; us: string; ind: string } {
-  const l = formatTermsLocale(locale);
+export function bracketRoundTitle(round: string | null | undefined): string {
   const r = (round ?? "").toUpperCase();
-  const map: Record<string, { short: string; us: string; ind: string }> = {
-    QF: {
-      short: "QF",
-      us: "Quarterfinal",
-      ind: "Quarter-final",
-    },
-    SF: {
-      short: "SF",
-      us: "Semifinal",
-      ind: "Semi-final",
-    },
-    BRONZE: {
-      short: "Bronze",
-      us: "Bronze medal match",
-      ind: "Bronze match",
-    },
-    FINAL: {
-      short: "Gold",
-      us: "Gold medal final",
-      ind: "Final",
-    },
+  const map: Record<string, string> = {
+    QF: "Quarter-final",
+    SF: "Semi-final",
+    BRONZE: "Bronze match",
+    FINAL: "Gold final",
   };
-  const row = map[r] ?? {
-    short: r || "Match",
-    us: "Match",
-    ind: "Match",
-  };
-  if (l === "US") return { short: row.short, us: row.us, ind: row.ind };
-  if (l === "IND") return { short: row.short, us: row.us, ind: row.ind };
-  return row;
+  return map[r] ?? (r || "Match");
 }
 
-export function matchLegendLines(locale: TermsLocale | null | undefined): string[] {
-  const l = formatTermsLocale(locale);
-  const base = [
+export function matchLegendLines(): string[] {
+  return [
     "QF = quarter-finals · SF = semi-finals · Bronze = 3rd place · Final = gold.",
   ];
-  if (l === "BOTH") {
-    return [
-      ...base,
-      "US: often “bale” for the physical target stand; India: “target assignment” sheet uses target number + position.",
-    ];
-  }
-  return base;
+}
+
+/** Short headings for bracket columns (tree layout). */
+export function bracketStageHeading(
+  round: "QF" | "SF" | "BRONZE" | "FINAL"
+): string {
+  const titles: Record<string, string> = {
+    QF: "Quarter-finals",
+    SF: "Semi-finals",
+    BRONZE: "Bronze (3rd place)",
+    FINAL: "Gold final (1st place)",
+  };
+  return titles[round] ?? round;
+}
+
+/** One-line hint under each stage for spectators. */
+export function bracketStageHint(round: "QF" | "SF" | "BRONZE" | "FINAL"): string {
+  const hints: Record<string, string> = {
+    QF: "Four matches · winners continue on the right",
+    SF: "Two matches · winners meet in the gold final",
+    BRONZE: "Losers of the semis shoot for bronze",
+    FINAL: "Winner takes gold; runner-up is silver",
+  };
+  return hints[round] ?? "";
+}
+
+/** Numbered steps for “how it works” panels. */
+export function bracketHowItWorksIntro(): string {
+  return "After qualification, the top archers enter single elimination matches. Each match has two archers; the judge records who won. Winners move toward the gold final on the right; beaten semi-finalists shoot the bronze match.";
 }

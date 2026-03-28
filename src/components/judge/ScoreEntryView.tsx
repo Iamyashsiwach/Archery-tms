@@ -248,8 +248,8 @@ export function ScoreEntryView({ tournamentId }: { tournamentId: string }) {
                   Field assignment
                 </p>
                 <p className="mt-1 font-mono text-xl text-primary sm:text-2xl">
-                  {baleLabel(tournament.terms_locale)} {selectedArcher.bale_number}{" "}
-                  · {slotLabel(tournament.terms_locale)}{" "}
+                  {baleLabel()} {selectedArcher.bale_number}{" "}
+                  · {slotLabel()}{" "}
                   {slotLetter(selectedArcher.slot_index)}
                 </p>
               </div>

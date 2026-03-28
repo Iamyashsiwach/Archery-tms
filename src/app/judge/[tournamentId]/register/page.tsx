@@ -14,7 +14,7 @@ export default async function JudgeRegisterRedirectPage({
       <p className="mt-4 text-secondary">
         Athletes are registered by <strong>coaches</strong> using a private invite
         link created in <strong>Admin → Coach invites</strong>. Coaches cannot see
-        other clubs’ entries. After they lock, only judges (or admin) can change
+        athletes from other schools or regions. After they lock, only judges (or admin) can change
         details — use <strong>Judge → Roster</strong>.
       </p>
       <Link

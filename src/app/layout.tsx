@@ -18,7 +18,7 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   title: "Archery Tournament Management",
-  description: "Judge scoring, live leaderboard, brackets",
+  description: "Judge scoring, live leaderboard, elimination matches",
 };
 
 export default function RootLayout({

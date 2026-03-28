@@ -49,6 +49,15 @@ export function getEventConfig(
         scoringZones: waZones(10),
         useSetSystem: false,
       };
+    /** 360 round: perfect total 360 = 12 ends × 3 arrows × 10, WA 10-ring, cumulative. */
+    case "R360":
+      return {
+        arrowsPerEnd: 3,
+        endCount: 12,
+        maxArrowScore: 10,
+        scoringZones: waZones(10),
+        useSetSystem: false,
+      };
     case "NFAA_FIELD":
       return {
         arrowsPerEnd: 4,

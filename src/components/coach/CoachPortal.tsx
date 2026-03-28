@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useArchers } from "@/hooks/useArchers";
+import { useTournament } from "@/hooks/useTournament";
 import { useSupabase } from "@/components/SupabaseProvider";
+import { BOW_LABEL, BOW_TYPES } from "@/lib/categoryGrouper";
 import type { AgeCategory, Archer, BowType, Coach, Gender } from "@/lib/types";
 
 const ages: AgeCategory[] = ["U18", "U21", "SENIOR", "MASTER", "VETERAN"];
 const genders: Gender[] = ["M", "F", "X"];
-const bows: BowType[] = ["RECURVE", "COMPOUND", "BAREBOW", "LONGBOW"];
 
 function CoachPortalInner({
   tournamentId,
@@ -18,6 +19,7 @@ function CoachPortalInner({
   coach: Coach;
 }) {
   const supabase = useSupabase();
+  const { tournament } = useTournament(supabase, tournamentId);
   const { archers, loading, registerArcher, refetch } = useArchers(
     supabase,
     tournamentId,
@@ -122,11 +124,18 @@ function CoachPortalInner({
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
       <p className="font-mono text-xs text-secondary">Coach portal · private link</p>
-      <h1 className="mt-2 font-heading text-2xl font-bold text-primary">
+      {tournament && (
+        <h1 className="mt-3 font-heading text-2xl font-bold leading-tight text-accent">
+          {tournament.name}
+        </h1>
+      )}
+      <h2 className="mt-4 font-heading text-xl font-semibold text-primary">
         {localCoach.display_name}
-      </h1>
+      </h2>
       {localCoach.club && (
-        <p className="text-sm text-secondary">{localCoach.club}</p>
+        <p className="text-sm text-secondary">
+          School / region (coach): {localCoach.club}
+        </p>
       )}
       {coachLocked && (
         <div className="mt-4 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-primary">
@@ -188,11 +197,12 @@ function CoachPortalInner({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs text-secondary">Club</span>
+            <span className="text-xs text-secondary">School / region (optional)</span>
             <input
               className="rounded-lg border border-border bg-background px-3 py-2"
               value={club}
               onChange={(e) => setClub(e.target.value)}
+              placeholder="School or region"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -230,9 +240,9 @@ function CoachPortalInner({
               value={bow}
               onChange={(e) => setBow(e.target.value as BowType)}
             >
-              {bows.map((x) => (
+              {BOW_TYPES.map((x) => (
                 <option key={x} value={x}>
-                  {x}
+                  {BOW_LABEL[x]}
                 </option>
               ))}
             </select>
@@ -269,12 +279,16 @@ export function CoachPortal({
   tournamentId: string;
   token: string;
 }) {
+  /** Avoid hydration mismatches (browser extensions mutate DOM; invite UI depends on client). */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const supabase = useSupabase();
   const [coach, setCoach] = useState<Coach | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!mounted || !supabase) return;
     void supabase
       .from("coaches")
       .select("*")
@@ -292,7 +306,17 @@ export function CoachPortal({
         }
         setCoach(data as Coach);
       });
-  }, [supabase, tournamentId, token]);
+  }, [mounted, supabase, tournamentId, token]);
+
+  if (!mounted) {
+    return (
+      <div
+        className="min-h-[40vh]"
+        suppressHydrationWarning
+        aria-busy="true"
+      />
+    );
+  }
 
   if (!supabase) {
     return <p className="p-6 text-danger">Configure Supabase.</p>;
@@ -311,7 +335,10 @@ export function CoachPortal({
 
   if (!coach) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-secondary">
+      <div
+        className="flex min-h-[40vh] items-center justify-center text-secondary"
+        suppressHydrationWarning
+      >
         Loading coach invite…
       </div>
     );

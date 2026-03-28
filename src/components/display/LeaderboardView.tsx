@@ -11,6 +11,9 @@ import { useTournament } from "@/hooks/useTournament";
 import { groupArchersByDivision } from "@/lib/categoryGrouper";
 import { useSupabase } from "@/components/SupabaseProvider";
 
+const navLink =
+  "rounded-lg border border-border bg-surface px-3 py-2 text-center text-sm font-heading uppercase tracking-wide text-accent transition hover:border-accent";
+
 export function LeaderboardView({ tournamentId }: { tournamentId: string }) {
   const supabase = useSupabase();
   const { tournament } = useTournament(supabase, tournamentId);
@@ -39,7 +42,27 @@ export function LeaderboardView({ tournamentId }: { tournamentId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-6">
+      <div className="sticky top-[52px] z-30 -mx-4 mb-6 border-b border-border bg-background/95 px-4 py-4 backdrop-blur-md print:static print:border-0 print:bg-transparent">
+        <p className="text-center text-xs text-secondary">
+          Refreshes live and every 30s. Top 8 marked for qualification.
+        </p>
+        <nav className="mt-3 flex flex-wrap items-center justify-center gap-2 print:hidden">
+          <Link className={navLink} href={`/display/${tournamentId}/targets`}>
+            Targets
+          </Link>
+          <Link className={navLink} href={`/display/${tournamentId}/bracket`}>
+            Elimination matches
+          </Link>
+          <Link className={navLink} href={`/display/${tournamentId}/results`}>
+            Results
+          </Link>
+          <Link className={navLink} href={`/print/${tournamentId}/bracket`}>
+            Print elimination matches
+          </Link>
+        </nav>
+      </div>
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-heading text-3xl font-bold text-primary">
@@ -52,11 +75,11 @@ export function LeaderboardView({ tournamentId }: { tournamentId: string }) {
         {url && (
           <div className="flex items-center gap-4 rounded-xl border border-border bg-surface p-4 print:hidden">
             <QRCodeSVG
-                value={url}
-                size={96}
-                fgColor="#e8a020"
-                bgColor="#141414"
-              />
+              value={url}
+              size={96}
+              fgColor="#e8a020"
+              bgColor="#141414"
+            />
             <div className="max-w-[200px]">
               <p className="font-mono text-[10px] break-all text-secondary">
                 {url}
@@ -79,28 +102,6 @@ export function LeaderboardView({ tournamentId }: { tournamentId: string }) {
           <LeaderboardTable division={active} rows={filtered} />
         </div>
       )}
-
-      <div className="mt-6 flex flex-wrap justify-center gap-4 text-center text-xs text-secondary print:hidden">
-        <span>Refreshes live and every 30s. Top 8 marked for qualification.</span>
-        <Link
-          className="text-accent hover:underline"
-          href={`/display/${tournamentId}/targets`}
-        >
-          Targets
-        </Link>
-        <Link className="text-accent hover:underline" href={`/display/${tournamentId}/bracket`}>
-          Bracket
-        </Link>
-        <Link className="text-accent hover:underline" href={`/display/${tournamentId}/results`}>
-          Results
-        </Link>
-        <Link
-          className="text-accent hover:underline"
-          href={`/print/${tournamentId}/bracket`}
-        >
-          Print bracket
-        </Link>
-      </div>
     </div>
   );
 }

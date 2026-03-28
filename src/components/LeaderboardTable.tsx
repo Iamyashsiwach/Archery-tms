@@ -1,5 +1,6 @@
 "use client";
 
+import { slotLetter } from "@/lib/targetAllotment";
 import type { LeaderboardEntry } from "@/lib/types";
 
 type Props = {
@@ -36,7 +37,10 @@ export function LeaderboardTable({ division, rows, topN = 8 }: Props) {
           <tr className="border-b border-border text-secondary">
             <th className="px-3 py-3 font-heading text-xs uppercase">#</th>
             <th className="px-3 py-3 font-heading text-xs uppercase">Archer</th>
-            <th className="px-3 py-3 font-heading text-xs uppercase">Club</th>
+            <th className="px-3 py-3 font-heading text-xs uppercase">
+              School / region
+            </th>
+            <th className="px-3 py-3 font-mono text-xs uppercase">Target</th>
             <th className="px-3 py-3 font-mono text-xs uppercase">Score</th>
             <th className="px-3 py-3 font-mono text-xs uppercase">X</th>
             <th className="px-3 py-3 font-heading text-xs uppercase">Status</th>
@@ -60,6 +64,11 @@ export function LeaderboardTable({ division, rows, topN = 8 }: Props) {
                 </td>
                 <td className="px-3 py-2 font-heading text-primary">{r.name}</td>
                 <td className="px-3 py-2 text-secondary">{r.club ?? "—"}</td>
+                <td className="px-3 py-2 font-mono text-sm text-secondary">
+                  {r.bale_number != null && r.slot_index != null
+                    ? `${r.bale_number}${slotLetter(r.slot_index)}`
+                    : "—"}
+                </td>
                 <td className="px-3 py-2 font-mono text-lg text-primary">
                   {r.total_score}
                 </td>

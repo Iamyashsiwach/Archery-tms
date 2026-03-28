@@ -27,49 +27,55 @@ export function useLeaderboard(
     return cfg.endCount;
   }, [tournament]);
 
-  const refetchLeaderboard = useCallback(async () => {
-    if (!supabase || !tournament || archers.length === 0) {
-      setEntries([]);
+  const refetchLeaderboard = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      const silent = opts?.silent === true;
+      if (!supabase || !tournament || archers.length === 0) {
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+      if (!silent) setLoading(true);
+      const { data: res } = await supabase
+        .from("results")
+        .select("*")
+        .eq("tournament_id", tournament.id);
+
+      const byArcher = new Map<string, ResultRow>();
+      for (const r of (res ?? []) as ResultRow[]) {
+        byArcher.set(r.archer_id, r);
+      }
+
+      const out: LeaderboardEntry[] = [];
+      for (const a of archers) {
+        const r = byArcher.get(a.id);
+        const { count } = await supabase
+          .from("scores")
+          .select("*", { count: "exact", head: true })
+          .eq("archer_id", a.id)
+          .eq("tournament_id", tournament.id)
+          .eq("round", "QUALIFICATION");
+
+        out.push({
+          archer_id: a.id,
+          name: a.name,
+          club: a.club,
+          division: a.division,
+          total_score: r?.total_score ?? 0,
+          total_x_count: r?.total_x_count ?? 0,
+          status: a.status,
+          ends_complete: count ?? 0,
+          ends_required: endsRequired,
+          bale_number: a.bale_number,
+          slot_index: a.slot_index,
+        });
+      }
+
+      setEntries(out);
       setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data: res } = await supabase
-      .from("results")
-      .select("*")
-      .eq("tournament_id", tournament.id);
-
-    const byArcher = new Map<string, ResultRow>();
-    for (const r of (res ?? []) as ResultRow[]) {
-      byArcher.set(r.archer_id, r);
-    }
-
-    const out: LeaderboardEntry[] = [];
-    for (const a of archers) {
-      const r = byArcher.get(a.id);
-      const { count } = await supabase
-        .from("scores")
-        .select("*", { count: "exact", head: true })
-        .eq("archer_id", a.id)
-        .eq("tournament_id", tournament.id)
-        .eq("round", "QUALIFICATION");
-
-      out.push({
-        archer_id: a.id,
-        name: a.name,
-        club: a.club,
-        division: a.division,
-        total_score: r?.total_score ?? 0,
-        total_x_count: r?.total_x_count ?? 0,
-        status: a.status,
-        ends_complete: count ?? 0,
-        ends_required: endsRequired,
-      });
-    }
-
-    setEntries(out);
-    setLoading(false);
-  }, [supabase, tournament, archers, endsRequired]);
+    },
+    [supabase, tournament, archers, endsRequired]
+  );
 
   useEffect(() => {
     void refetchLeaderboard();
@@ -77,21 +83,35 @@ export function useLeaderboard(
 
   useEffect(() => {
     if (!supabase || !tournament) return;
+    const tid = tournament.id;
     const channel = supabase
-      .channel(`leaderboard-${tournament.id}`)
+      .channel(`leaderboard-${tid}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "scores" },
-        () => void refetchLeaderboard()
+        () => void refetchLeaderboard({ silent: true })
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "results" },
-        () => void refetchLeaderboard()
+        () => void refetchLeaderboard({ silent: true })
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "archers",
+          filter: `tournament_id=eq.${tid}`,
+        },
+        () => void refetchLeaderboard({ silent: true })
       )
       .subscribe();
 
-    const iv = window.setInterval(() => void refetchLeaderboard(), 30_000);
+    const iv = window.setInterval(
+      () => void refetchLeaderboard({ silent: true }),
+      30_000
+    );
 
     return () => {
       window.clearInterval(iv);

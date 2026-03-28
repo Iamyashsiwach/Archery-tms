@@ -1,10 +1,27 @@
 import type { AgeCategory, Archer, BowType, Gender } from "./types";
 
-const BOW_LABEL: Record<BowType, string> = {
-  RECURVE: "Recurve",
+/** Order used in registration and roster dropdowns. */
+export const BOW_TYPES: BowType[] = ["RECURVE", "COMPOUND", "INDIAN"];
+
+/** Maps legacy DB values and unknown strings to current BowType. */
+export function coerceBowType(raw: string | null | undefined): BowType {
+  if (raw === "RECURVE" || raw === "COMPOUND" || raw === "INDIAN") {
+    return raw;
+  }
+  if (
+    raw === "TRADITIONAL" ||
+    raw === "BAREBOW" ||
+    raw === "LONGBOW"
+  ) {
+    return "INDIAN";
+  }
+  return "RECURVE";
+}
+
+export const BOW_LABEL: Record<BowType, string> = {
+  RECURVE: "Recurve (Olympic)",
   COMPOUND: "Compound",
-  BAREBOW: "Barebow",
-  LONGBOW: "Longbow",
+  INDIAN: "Indian",
 };
 
 const GENDER_LABEL: Record<Gender, string> = {

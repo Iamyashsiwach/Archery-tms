@@ -12,7 +12,7 @@ create table if not exists tournaments (
   status text default 'REGISTRATION'
     check (status in ('REGISTRATION','QUALIFICATION','ELIMINATION','FINALS','COMPLETE')),
   event_type text not null
-    check (event_type in ('WA18','WA25','WA720','NFAA_FIELD','CUSTOM')),
+    check (event_type in ('WA18','WA25','WA720','R360','NFAA_FIELD','CUSTOM')),
   arrows_per_end int not null,
   end_count int not null,
   max_arrow_score int not null,
@@ -43,7 +43,7 @@ create table if not exists archers (
   club text,
   age_category text check (age_category in ('U18','U21','SENIOR','MASTER','VETERAN')),
   gender text check (gender in ('M','F','X')),
-  bow_type text check (bow_type in ('RECURVE','COMPOUND','BAREBOW','LONGBOW')),
+  bow_type text check (bow_type in ('RECURVE','COMPOUND','INDIAN')),
   division text,
   seed_rank int,
   bale_number int,

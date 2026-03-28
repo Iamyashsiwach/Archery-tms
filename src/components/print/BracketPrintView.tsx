@@ -40,7 +40,7 @@ export function BracketPrintView({ tournamentId }: { tournamentId: string }) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 text-black print:bg-white">
       <PrintControls />
-      <h1 className="font-heading text-2xl font-bold">Bracket</h1>
+      <h1 className="font-heading text-2xl font-bold">Elimination matches</h1>
       {tournament && (
         <p className="mt-2 font-mono text-sm">{tournament.name}</p>
       )}

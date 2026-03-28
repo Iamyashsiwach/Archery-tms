@@ -229,29 +229,46 @@ function buildSmallBracket(
   return out;
 }
 
+export type BracketAdvancePatch = {
+  targetMatchId: string;
+  archer1_id?: string | null;
+  archer2_id?: string | null;
+};
+
+function loserOf(m: MatchRow): string | null {
+  if (m.status !== "COMPLETE" || !m.winner_id) return null;
+  if (m.winner_id === m.archer1_id) return m.archer2_id ?? null;
+  return m.archer1_id ?? null;
+}
+
 /**
- * Maps a completed match to the next slot in a fixed bracket layout.
- * Returns a partial row for the *next* match to merge (use with caution in DB).
+ * After a match is marked COMPLETE, returns DB updates that place winners (and SF losers into bronze).
+ * QF → SF slots; SF → gold final + when both semis are done, bronze gets both losers.
  */
 export function advanceBracket(
   completedMatch: MatchRow,
   allMatches: MatchRow[]
-): Partial<MatchRow> & { targetMatchId?: string } {
+): BracketAdvancePatch[] {
   const { round, match_number, winner_id, division: div } = completedMatch;
-  if (!winner_id || completedMatch.status !== "COMPLETE") return {};
+  if (!winner_id || completedMatch.status !== "COMPLETE") return [];
 
   const sameDiv = allMatches.filter((m) => m.division === div);
   const sf = sameDiv
     .filter((m) => m.round === "SF")
     .sort((a, b) => (a.match_number ?? 0) - (b.match_number ?? 0));
+  const out: BracketAdvancePatch[] = [];
 
   if (round === "QF" && sf.length >= 2) {
     const idx = (match_number ?? 1) - 1;
     const sfIdx = idx < 2 ? 0 : 1;
-    const slot = idx % 2 === 0 ? "archer1_id" : "archer2_id";
     const target = sf[sfIdx];
-    if (!target) return {};
-    return { targetMatchId: target.id, [slot]: winner_id };
+    if (!target) return [];
+    if (idx % 2 === 0) {
+      out.push({ targetMatchId: target.id, archer1_id: winner_id });
+    } else {
+      out.push({ targetMatchId: target.id, archer2_id: winner_id });
+    }
+    return out;
   }
 
   if (round === "SF") {
@@ -261,33 +278,33 @@ export function advanceBracket(
     const bronze = sameDiv
       .filter((m) => m.round === "BRONZE")
       .sort((a, b) => (a.match_number ?? 0) - (b.match_number ?? 0))[0];
-    const loserId =
-      completedMatch.winner_id === completedMatch.archer1_id
-        ? completedMatch.archer2_id
-        : completedMatch.archer1_id;
-    const sfOrder = sf.map((m) => m.id);
-    const sfIndex = sfOrder.indexOf(completedMatch.id);
+    const sfSorted = [...sf].sort(
+      (a, b) => (a.match_number ?? 0) - (b.match_number ?? 0)
+    );
+    const sfIndex = sfSorted.findIndex((m) => m.id === completedMatch.id);
+
     if (finals && sfIndex === 0) {
-      return { targetMatchId: finals.id, archer1_id: winner_id };
+      out.push({ targetMatchId: finals.id, archer1_id: winner_id });
     }
     if (finals && sfIndex === 1) {
-      return { targetMatchId: finals.id, archer2_id: winner_id };
+      out.push({ targetMatchId: finals.id, archer2_id: winner_id });
     }
-    if (bronze && loserId) {
-      const otherSf = sf.find((m) => m.id !== completedMatch.id);
-      if (otherSf?.status === "COMPLETE" && bronze) {
-        const b1 =
-          otherSf.winner_id === otherSf.archer1_id
-            ? otherSf.archer2_id
-            : otherSf.archer1_id;
-        return {
+
+    const allSfDone =
+      sfSorted.length >= 2 && sfSorted.every((m) => m.status === "COMPLETE");
+    if (bronze && allSfDone) {
+      const l1 = loserOf(sfSorted[0]);
+      const l2 = loserOf(sfSorted[1]);
+      if (l1 && l2) {
+        out.push({
           targetMatchId: bronze.id,
-          archer1_id: loserId,
-          archer2_id: b1 ?? undefined,
-        };
+          archer1_id: l1,
+          archer2_id: l2,
+        });
       }
     }
+    return out;
   }
 
-  return {};
+  return [];
 }

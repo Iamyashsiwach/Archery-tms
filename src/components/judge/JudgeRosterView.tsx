@@ -5,12 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useArchers } from "@/hooks/useArchers";
 import { useTournament } from "@/hooks/useTournament";
 import { useSupabase } from "@/components/SupabaseProvider";
-import { getDivision } from "@/lib/categoryGrouper";
+import {
+  BOW_LABEL,
+  BOW_TYPES,
+  coerceBowType,
+  getDivision,
+} from "@/lib/categoryGrouper";
 import type { AgeCategory, Archer, BowType, Gender } from "@/lib/types";
 
 const ages: AgeCategory[] = ["U18", "U21", "SENIOR", "MASTER", "VETERAN"];
 const genders: Gender[] = ["M", "F", "X"];
-const bows: BowType[] = ["RECURVE", "COMPOUND", "BAREBOW", "LONGBOW"];
 
 export function JudgeRosterView({ tournamentId }: { tournamentId: string }) {
   const supabase = useSupabase();
@@ -147,7 +151,7 @@ function RosterRow({
   const [name, setName] = useState(a.name);
   const [age, setAge] = useState<AgeCategory>(a.age_category ?? "SENIOR");
   const [gender, setGender] = useState<Gender>(a.gender ?? "M");
-  const [bow, setBow] = useState<BowType>(a.bow_type ?? "RECURVE");
+  const [bow, setBow] = useState<BowType>(coerceBowType(a.bow_type));
   const [club, setClub] = useState(a.club ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -155,7 +159,7 @@ function RosterRow({
     setName(a.name);
     setAge(a.age_category ?? "SENIOR");
     setGender(a.gender ?? "M");
-    setBow(a.bow_type ?? "RECURVE");
+    setBow(coerceBowType(a.bow_type));
     setClub(a.club ?? "");
   }, [a]);
 
@@ -253,14 +257,14 @@ function RosterRow({
             value={bow}
             onChange={(e) => setBow(e.target.value as BowType)}
           >
-            {bows.map((x) => (
+            {BOW_TYPES.map((x) => (
               <option key={x} value={x}>
-                {x}
+                {BOW_LABEL[x]}
               </option>
             ))}
           </select>
           <input
-            placeholder="Club"
+            placeholder="School / region"
             className="rounded border border-border bg-background px-1 py-1 text-xs"
             value={club}
             onChange={(e) => setClub(e.target.value)}

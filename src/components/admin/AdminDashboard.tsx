@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSupabase } from "@/components/SupabaseProvider";
 import { adminForceBracketGeneration } from "@/lib/adminBracket";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
+import { EVENT_FORMAT_HINT, EVENT_FORMAT_LABELS } from "@/lib/eventLabels";
 import { getEventConfig } from "@/lib/rulesEngine";
 import { assignArchersToBales, slotLetter } from "@/lib/targetAllotment";
 import type {
@@ -12,7 +13,6 @@ import type {
   Coach,
   EventType,
   ScoreRow,
-  TermsLocale,
   Tournament,
 } from "@/lib/types";
 
@@ -22,6 +22,7 @@ const EVENT_TYPES: EventType[] = [
   "WA18",
   "WA25",
   "WA720",
+  "R360",
   "NFAA_FIELD",
   "CUSTOM",
 ];
@@ -52,7 +53,6 @@ export function AdminDashboard() {
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [newCoachName, setNewCoachName] = useState("");
   const [newCoachClub, setNewCoachClub] = useState("");
-  const [termsLocale, setTermsLocale] = useState<TermsLocale>("BOTH");
   const [origin, setOrigin] = useState("");
 
   const tDetail = useMemo((): Tournament | null => {
@@ -127,8 +127,13 @@ export function AdminDashboard() {
       Math.ceil(archers.length / Math.max(1, per)) || 1
     );
     setBalesInput(tDetail.bale_count ?? inferred);
-    setTermsLocale((tDetail.terms_locale as TermsLocale) ?? "BOTH");
   }, [tDetail, archers.length]);
+
+  useEffect(() => {
+    if (!msg) return;
+    const t = window.setTimeout(() => setMsg(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [msg]);
 
   const unlock = (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,7 +173,6 @@ export function AdminDashboard() {
       max_arrow_score: cfg.maxArrowScore,
       archers_per_bale: 4,
       judge_access_code: null,
-      terms_locale: "BOTH",
     });
     if (error) {
       setMsg(error.message);
@@ -295,7 +299,7 @@ export function AdminDashboard() {
     if (!supabase || !selected) return;
     try {
       await adminForceBracketGeneration(supabase, selected, archers);
-      setMsg("Brackets regenerated.");
+      setMsg("Elimination matches regenerated.");
       await loadTournamentDetail();
     } catch (err: unknown) {
       setMsg(err instanceof Error ? err.message : "Failed");
@@ -310,7 +314,6 @@ export function AdminDashboard() {
         judge_access_code:
           judgeCode.trim() === "" ? null : judgeCode.trim(),
         archers_per_bale: Math.max(1, Math.floor(perBale)),
-        terms_locale: termsLocale,
       })
       .eq("id", selected);
     if (error) {
@@ -482,7 +485,9 @@ export function AdminDashboard() {
             />
           </label>
           <label className="flex flex-col gap-1 sm:col-span-2">
-            <span className="text-xs text-secondary">Event type</span>
+            <span className="text-xs text-secondary">
+              Round format (Indian / WA-style circuit)
+            </span>
             <select
               className="rounded border border-border bg-background px-3 py-2"
               value={eventType}
@@ -490,10 +495,13 @@ export function AdminDashboard() {
             >
               {EVENT_TYPES.map((ev) => (
                 <option key={ev} value={ev}>
-                  {ev}
+                  {EVENT_FORMAT_LABELS[ev]}
                 </option>
               ))}
             </select>
+            <span className="text-[11px] leading-snug text-secondary">
+              {EVENT_FORMAT_HINT}
+            </span>
           </label>
           {eventType === "CUSTOM" && (
             <>
@@ -601,7 +609,7 @@ export function AdminDashboard() {
               className="rounded-lg border border-accent px-4 py-2 text-sm text-accent"
               onClick={() => void forceBracket()}
             >
-              Generate brackets
+              Generate elimination matches
             </button>
             <button
               type="button"
@@ -655,27 +663,13 @@ export function AdminDashboard() {
                   onChange={(e) => setPerBale(+e.target.value || 1)}
                 />
               </label>
-              <label className="flex flex-col gap-1 sm:col-span-2">
-                <span className="text-xs text-secondary">
-                  Field terminology (India / US screens)
-                </span>
-                <select
-                  className="rounded border border-border bg-background px-3 py-2"
-                  value={termsLocale}
-                  onChange={(e) => setTermsLocale(e.target.value as TermsLocale)}
-                >
-                  <option value="BOTH">Both (India + US labels)</option>
-                  <option value="IND">India-style terms</option>
-                  <option value="US">US-style terms</option>
-                </select>
-              </label>
             </div>
             <button
               type="button"
               className="mt-4 rounded-lg border border-border px-4 py-2 text-sm"
               onClick={() => void saveAccessAndBaleSettings()}
             >
-              Save access / bale / terms
+              Save access / bale
             </button>
 
             <div className="mt-8 border-t border-border pt-6">
@@ -728,7 +722,7 @@ export function AdminDashboard() {
               />
               <input
                 className="min-w-[140px] flex-1 rounded border border-border bg-background px-3 py-2"
-                placeholder="Club (optional)"
+                placeholder="School / region (optional)"
                 value={newCoachClub}
                 onChange={(e) => setNewCoachClub(e.target.value)}
               />
@@ -790,7 +784,7 @@ export function AdminDashboard() {
                     <th className="p-2">Division</th>
                     <th className="p-2">Bale</th>
                     <th className="p-2">Slot</th>
-                    <th className="p-2">Club</th>
+                    <th className="p-2">School / region</th>
                     <th className="p-2" />
                   </tr>
                 </thead>
@@ -857,7 +851,14 @@ export function AdminDashboard() {
         </section>
       )}
 
-      {msg && <p className="mt-6 text-sm text-secondary">{msg}</p>}
+      {msg && (
+        <div
+          role="status"
+          className="fixed left-1/2 top-20 z-[200] max-w-[min(90vw,28rem)] -translate-x-1/2 rounded-xl border border-accent/40 bg-surface px-4 py-3 text-center text-sm text-primary shadow-lg"
+        >
+          {msg}
+        </div>
+      )}
     </div>
   );
 }

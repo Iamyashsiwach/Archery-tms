@@ -5,11 +5,11 @@ import { useState } from "react";
 import { useArchers } from "@/hooks/useArchers";
 import { useTournament } from "@/hooks/useTournament";
 import { useSupabase } from "@/components/SupabaseProvider";
+import { BOW_LABEL, BOW_TYPES } from "@/lib/categoryGrouper";
 import type { AgeCategory, BowType, Gender } from "@/lib/types";
 
 const ages: AgeCategory[] = ["U18", "U21", "SENIOR", "MASTER", "VETERAN"];
 const genders: Gender[] = ["M", "F", "X"];
-const bows: BowType[] = ["RECURVE", "COMPOUND", "BAREBOW", "LONGBOW"];
 
 export function RegisterArcherView({ tournamentId }: { tournamentId: string }) {
   const supabase = useSupabase();
@@ -70,7 +70,7 @@ export function RegisterArcherView({ tournamentId }: { tournamentId: string }) {
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-secondary">Club</span>
+          <span className="text-sm text-secondary">School / region</span>
           <input
             className="rounded-lg border border-border bg-surface px-3 py-2 text-primary"
             value={club}
@@ -112,9 +112,9 @@ export function RegisterArcherView({ tournamentId }: { tournamentId: string }) {
             value={bow}
             onChange={(e) => setBow(e.target.value as BowType)}
           >
-            {bows.map((b) => (
+            {BOW_TYPES.map((b) => (
               <option key={b} value={b}>
-                {b}
+                {BOW_LABEL[b]}
               </option>
             ))}
           </select>
